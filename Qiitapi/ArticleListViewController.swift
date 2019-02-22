@@ -12,35 +12,40 @@ import SwiftyJSON
 
 class ArticleListViewController: UIViewController, UITableViewDataSource {
   
-    let QiitaTable = UITableView()
+//    let QiitaTable = UITableView()
+    @IBOutlet var QiitaTableView: UITableView!
     var articles: [[String: String?]] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "新着記事"
-        let url = "https://qiita.com/api/v2/items"
         
+        title = "はるふさんの記事たち"
+        let url = "https://qiita.com/api/v2/users/_ha1f/items"
         getArticles(url: url)
         
-        QiitaTable.frame = view.frame
-        view.addSubview(QiitaTable)
-        
-        QiitaTable.dataSource = self
-        
+        self.QiitaTableView.dataSource = self
+        self.QiitaTableView.register(UINib(nibName: "ArticleTableViewCell", bundle: nil), forCellReuseIdentifier: "ArticleTableViewCell")
     }
+    
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return articles.count
     }
     
+    
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = UITableViewCell(style: .subtitle, reuseIdentifier: "cell")
-        let article = articles[indexPath.row] // 行数番目の記事を取得
-        cell.textLabel?.text = article["title"]! // 記事のタイトルをtextLabelにセット
-        cell.detailTextLabel?.text = article["userId"]! // 投稿者のユーザーIDをdetailTextLabelにセット
+        let cell = tableView.dequeueReusableCell(withIdentifier: "ArticleTableViewCell") as! ArticleTableViewCell
+        let article = articles[indexPath.row]
+        cell.articleTitle.text = article["title"]!
+        cell.userName.text = article["userName"]!
+        cell.dateLabel.text = dateFormat(dateInfo: article["date"]!!)
+        cell.userIcon.image = getImageByUrl(url: article["userIcon"]!!)
+        
         return cell
     }
     
+    
+    //APIから情報取得
     func getArticles(url: String) {
         
         Alamofire.request(url, method: .get).responseJSON { response in
@@ -50,12 +55,74 @@ class ArticleListViewController: UIViewController, UITableViewDataSource {
             json.forEach {(_, json) in
                 let article: [String: String?] = [
                     "title": json["title"].string,
-                    "userId": json["user"]["id"].string
+                    "userName": json["user"]["name"].string,
+                    "date": json["created_at"].string,
+                    "userIcon": json["user"]["profile_image_url"].string
                 ]
                 self.articles.append(article)
             }
-            self.QiitaTable.reloadData()
+            self.QiitaTableView.reloadData()
         }
     }
     
+    
+    //日付フォーマット
+    func dateFormat(dateInfo: String) -> String? {
+        
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy'-'MM'-'dd'T'HH':'mm':'ssZZZ"
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        if let date = dateFormatter.date(from: dateInfo) {
+            dateFormatter.dateFormat = DateFormatter.dateFormat(fromTemplate: "MMMMdd','yyyy", options: 0, locale: Locale(identifier: "en"))
+            let dateStr = dateFormatter.string(from: date).description
+            return dateStr
+        }
+        
+        return nil
+    }
+    
+    
+    //URLからアイコン画像の取得
+    func getImageByUrl(url: String) -> UIImage{
+        let url = URL(string: url)
+        do {
+            let data = try Data(contentsOf: url!)
+            return UIImage(data: data)!
+        } catch let err {
+            print("Error : \(err.localizedDescription)")
+        }
+        return UIImage()
+    }
+    
+}
+
+//URL指定した画像を非同期でUIImageViewにセットする
+//https://qiita.com/sensuikan1973/items/80ce3bd398cbbb8a4935
+extension UIImageView {
+    func loadImageAsynchronously(url: URL?, defaultUIImage: UIImage? = nil) -> Void {
+        
+        if url == nil {
+            self.image = defaultUIImage
+            return
+        }
+        
+        DispatchQueue.global().async {
+            do {
+                let imageData: Data? = try Data(contentsOf: url!)
+                DispatchQueue.main.async {
+                    if let data = imageData {
+                        self.image = UIImage(data: data)
+                    } else {
+                        self.image = defaultUIImage
+                    }
+                }
+            }
+            catch {
+                DispatchQueue.main.async {
+                    self.image = defaultUIImage
+                }
+            }
+        }
+    }
 }
