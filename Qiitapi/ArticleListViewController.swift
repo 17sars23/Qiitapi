@@ -19,8 +19,9 @@ class ArticleListViewController: UIViewController, UITableViewDataSource {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        title = "はるふさんの記事たち"
-        let url = "https://qiita.com/api/v2/users/_ha1f/items"
+        title = "新着記事たち"
+//        let url = "https://qiita.com/api/v2/users/_ha1f/items"
+        let url = "https://qiita.com/api/v2/items"
         getArticles(url: url)
         
         self.QiitaTableView.dataSource = self
@@ -39,7 +40,7 @@ class ArticleListViewController: UIViewController, UITableViewDataSource {
         cell.articleTitle.text = article["title"]!
         cell.userName.text = article["userName"]!
         cell.dateLabel.text = dateFormat(dateInfo: article["date"]!!)
-        cell.userIcon.image = getImageByUrl(url: article["userIcon"]!!)
+        cell.userIcon.loadImageAsynchronously(url: URL(string: article["userIcon"]!!))
         
         return cell
     }
@@ -80,19 +81,6 @@ class ArticleListViewController: UIViewController, UITableViewDataSource {
         }
         
         return nil
-    }
-    
-    
-    //URLからアイコン画像の取得
-    func getImageByUrl(url: String) -> UIImage{
-        let url = URL(string: url)
-        do {
-            let data = try Data(contentsOf: url!)
-            return UIImage(data: data)!
-        } catch let err {
-            print("Error : \(err.localizedDescription)")
-        }
-        return UIImage()
     }
     
 }
